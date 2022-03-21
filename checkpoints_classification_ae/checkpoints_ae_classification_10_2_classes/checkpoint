@@ -1,0 +1,2 @@
+model_checkpoint_path: "class_best_model_weights.tf"
+all_model_checkpoint_paths: "class_best_model_weights.tf"
