@@ -6,7 +6,21 @@ import sklearn.preprocessing
 import sklearn.manifold
 from sys import exit
 import csae_model as csae
+import sys
 
+if len(sys.argv) != 2:
+    print(f"<Usage> python3 {sys.argv[0]} number_of_latent_dimensions")
+    sys.exit()
+
+try:
+    latent_dims = int(sys.argv[1])
+except Exception as e:
+    print("Please provide valid input")
+    sys.exit()
+
+if latent_dims<=0:
+    print("Please provide a positive number as the number of dimensions in the Latent Space")
+    sys.exit()
 
 # load the MNIST dataset
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -14,7 +28,7 @@ epochs, batch_size = 200, 128
 learning_rate = 1e-4
 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
 num_classes = 10
-latent_dims = 2
+
 # create a validation set that is equal to the 10% of the train set
 val_size=0.1
 x_train, x_val, y_train, y_val = sklearn.model_selection.train_test_split(x_train,
@@ -190,22 +204,22 @@ encoder = tf.keras.Model(inputs=model.autoencoder.input,
                         outputs=model.autoencoder.get_layer("LatentLayer").output)
 embeddings = encoder.predict(x_test)
 
-
-# =============================================================================
-#                                DECODER GRID 
-# =============================================================================
-save_path = os.path.join(visualization_results_path, "MNNIST_decoded_grid_of_points.png")
-number_of_points = 20
-decoder_first_layer_name = "Decoder3"
-csae.decode_grid_of_latent_representations(model, embeddings, number_of_points, save_path, decoder_first_layer_name)
-
-# =============================================================================
-#                             Decision Boundary 
-# =============================================================================
-classifier_first_layer_name = "Class1"
-zoom_figX_figY = (0.5, 12, 10)
-save_path = os.path.join(visualization_results_path,f"mnist_network_embedded_space_decision_boundary_2D_latent_dim_{num_classes}_classes.png")
-csae.decision_boundary_on_latent_space(model, embeddings, x_test, y_test, zoom_figX_figY, classifier_first_layer_name, save_path)
+if latent_dims  == 2:
+    # =============================================================================
+    #                                DECODER GRID 
+    # =============================================================================
+    save_path = os.path.join(visualization_results_path, "MNNIST_decoded_grid_of_points.png")
+    number_of_points = 20
+    decoder_first_layer_name = "Decoder3"
+    csae.decode_grid_of_latent_representations(model, embeddings, number_of_points, save_path, decoder_first_layer_name)
+    
+    #=============================================================================
+    #                             Decision Boundary 
+    # =============================================================================
+    classifier_first_layer_name = "Class1"
+    zoom_figX_figY = (0.5, 12, 10)
+    save_path = os.path.join(visualization_results_path,f"mnist_network_embedded_space_decision_boundary_2D_latent_dim_{num_classes}_classes.png")
+    csae.decision_boundary_on_latent_space(model, embeddings, x_test, y_test, zoom_figX_figY, classifier_first_layer_name, save_path)
 
 # =============================================================================
 #                         Latent Space Visualizations  
