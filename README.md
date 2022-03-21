@@ -1,7 +1,7 @@
 # Convolutional Supervised Autoencoder - CSAE
 The Keras implementation on the MNIST Dataset and the Supplementary Material of the Supervised Dimensionality Reduction and Classification with Convolutional Autoencoders.
 
-## Experiment
+## Experiment on MNIST Dataset
 ### Usage
 1. Clone the code to local machine
 ```
