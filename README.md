@@ -32,4 +32,4 @@ The script execution produces a checkpoint folder and a folder that contains the
 ![](classification_and_visualization_results_CSAE/visualization_results/visualization_results_MNIST_num_class_10_lat_dims_2/MNNIST_decoded_grid_of_points.png)
 
 # Supplementary Material
-Moreover, the supplementary material is contained in the pdf file with name "supplementary_material.pdf"
+Finally, the supplementary material is contained in the pdf file with name "supplementary_material.pdf"
