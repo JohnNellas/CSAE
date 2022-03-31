@@ -204,7 +204,7 @@ def decode_grid_of_latent_representations(csae, embeddings:np.array, number_of_p
     x = np.linspace(min_x, max_x, number_of_points)
     y = np.linspace(min_y, max_y, number_of_points)
 
-    X,Y = np.meshgrid(x, y)
+    X,Y = np.meshgrid(x, y[::-1])
 
     # Decode the grid of points and construct a figure of the resulting images
     fig, axis = plt.subplots(nrows=number_of_points,
