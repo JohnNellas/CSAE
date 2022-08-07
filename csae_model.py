@@ -8,6 +8,10 @@ import seaborn as sns
 
 class CSAE(tf.keras.Model):
     def __init__(self, autoencoder, class_model, **kwargs):
+        """
+        autoencoder: The autoencoder model
+        class_model: The classifier model
+        """
         super(CSAE,self).__init__(**kwargs)
         self.autoencoder = autoencoder
         self.class_model = class_model
@@ -64,11 +68,10 @@ class CSAE(tf.keras.Model):
 
     def test_step(self, data):
         x_data, y_data = data
+        
+        # compute the reconstructions and the predictions
         reconstructions = self.autoencoder(x_data, training=False)
-        loss_value = self.ae_loss_fn(x_data, reconstructions)
-
         predictions = self.class_model(x_data, training=False)
-        loss_value_class = self.class_loss_fn(y_data, predictions)
 
         # update states
         self.ae_metric.update_state(x_data, reconstructions)
@@ -174,7 +177,7 @@ def build_test_model(input_shape: tuple, latent_dims: int, number_of_classes: in
 
 def decode_grid_of_latent_representations(csae, embeddings:np.array, number_of_points:int, save_path:str, decoder_first_layer_name:str):
     
-    # check if the embeddings are 2d
+    # check if the embeddings are 2D
     if embeddings.shape[-1] != 2:
         print("Please provide 2D embeddings")
         return 
@@ -221,13 +224,15 @@ def decode_grid_of_latent_representations(csae, embeddings:np.array, number_of_p
             axis[enum, enum_cols].axis("off")
             axis[enum, enum_cols].imshow(decode.squeeze(), cmap="gray")
 
+    # save the figure to a file
     plt.savefig(save_path,
+                bbox_inches='tight',
                 dpi=300)
     plt.close()
 
-def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_test, zoom_figX_figY:tuple, classifier_first_layer_name:str, save_path:str, number_of_grid_points=75, number_of_samples=100, seed_val=42):
+def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_test, zoom_figX_figY:tuple, classifier_first_layer_name:str, save_path:str, cmap="gray", number_of_grid_points=75, number_of_samples_per_class=5, seed_val=42):
     
-    # check if the embeddings are 2d
+    # check if the embeddings are 2D
     if embeddings.shape[-1] != 2:
         print("Please provide 2D embeddings")
         return 
@@ -246,7 +251,6 @@ def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_te
                 x = layer(x)
 
     classifier_net = tf.keras.Model(inputs=classifier_input, outputs=x)
-    classifier_net.summary()
 
     # create a grid around the embeddings
     min_x = np.round(np.min(embeddings[:,0]),2)
@@ -262,9 +266,10 @@ def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_te
 
     # specify the figure settings
     zoom, fig_x, fig_y = zoom_figX_figY
-    fig= plt.figure(figsize=(fig_x, fig_y))
-    ax = fig.add_subplot(111)
 
+    fig = plt.figure(figsize=(fig_x, fig_y))
+    ax  = fig.add_subplot(111)
+    
     # create a list of all the 2d grid points
     grid_of_points = list()
     for k,l in zip(X,Y):
@@ -283,15 +288,21 @@ def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_te
     df["Y"] = predictions_grid
     sns.scatterplot(x="E1", y="E2", hue="Y", data=df, palette="bright", alpha=0.4, legend=False)
 
-    # Do a scatter plot of the embeddings coloured by the ground truth class
+    # Do a scatter plot of the raw embeddings coloured by the ground truth class
     df_sc = pd.DataFrame(data=embeddings, columns=["E1", "E2"])
     df_sc["Y"] = y_test
     sns.scatterplot(x="E1", y="E2", hue="Y", data=df_sc, palette="bright")
 
-    # Take a Random Sample of a number of images from the images_sample_pool and present it on the latent space
+    # get a random number of samples from each class
     np.random.seed(seed_val)
-    samples_to_display = np.random.randint(0, y_test.shape[0], size=number_of_samples)
-    cmap = "gray" if len(images_sample_pool.shape) == 3 or (len(images_sample_pool.shape) == 4 and images_sample_pool.shape[-1]==1) else None
+    samples_each_class = list()
+    for uq_class in np.unique(y_test):
+        inds_class = np.where(y_test == uq_class)[0]
+        samples_of_class = np.random.choice(inds_class, size=(number_of_samples_per_class,), replace=False)
+        samples_each_class.append(samples_of_class)
+    samples_to_display = np.concatenate(samples_each_class, axis=0)
+    
+    # replace the sampled points by the corresponding original images in the scatter plot    
     for sample in samples_to_display:
         im = matplotlib.offsetbox.OffsetImage(images_sample_pool[sample].squeeze(), zoom=zoom, cmap=cmap)
         x0, y0 = embeddings[sample]
@@ -299,7 +310,25 @@ def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_te
         ax.add_artist(ab)
     plt.axis("off")
 
-    # save the result to file
+    # save it to a file
     plt.savefig(save_path,
-                dpi=300)
+                dpi=300,
+                bbox_inches='tight')
     plt.close()
+
+    # # Take a Random Sample of a number of images from the images_sample_pool and present it on the latent space
+    # np.random.seed(seed_val)
+    # samples_to_display = np.random.randint(0, y_test.shape[0], size=number_of_samples)
+    # cmap = "gray" if len(images_sample_pool.shape) == 3 or (len(images_sample_pool.shape) == 4 and images_sample_pool.shape[-1]==1) else None
+    # for sample in samples_to_display:
+    #     im = matplotlib.offsetbox.OffsetImage(images_sample_pool[sample].squeeze(), zoom=zoom, cmap=cmap)
+    #     x0, y0 = embeddings[sample]
+    #     ab = matplotlib.offsetbox.AnnotationBbox(im, (x0, y0), frameon=False)
+    #     ax.add_artist(ab)
+    # plt.axis("off")
+
+    # # save the figure to a file
+    # plt.savefig(save_path,
+    #             bbox_inches='tight',
+    #             dpi=300)
+    # plt.close()

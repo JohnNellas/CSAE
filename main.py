@@ -1,36 +1,53 @@
 import tensorflow as tf
 import numpy as np
 import os
+import csae_model as csae
+import sys
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+import seaborn as sns
 import sklearn.model_selection
 import sklearn.preprocessing
 import sklearn.manifold
-from sys import exit
-import csae_model as csae
-import sys
+import sklearn.manifold
+import sklearn.decomposition
+import sklearn.metrics
+import sklearn.neighbors
+import sklearn.svm
+import sklearn.naive_bayes
 
+# check the number of parameters
+# if a wrong number of parameters is given, print a usage message and exit
 if len(sys.argv) != 2:
     print(f"<Usage> python3 {sys.argv[0]} number_of_latent_dimensions")
     sys.exit()
 
+# try to convert the argument from a string number to an integer 
+# if conversion fails print an error message and exit
 try:
     latent_dims = int(sys.argv[1])
 except Exception as e:
     print("Please provide valid input")
     sys.exit()
 
-if latent_dims<=0:
+# if a non positive number for the Latent Space's number of dimensions is provided
+# print an error message and exit
+if latent_dims <= 0:
     print("Please provide a positive number as the number of dimensions in the Latent Space")
     sys.exit()
 
 # load the MNIST dataset
 (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+num_classes = 10
+
+# Set the value of some training parameters
 epochs, batch_size = 200, 128
 learning_rate = 1e-4
 optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate)
-num_classes = 10
 
 # create a validation set that is equal to the 10% of the train set
-val_size=0.1
+val_size = 0.1
 x_train, x_val, y_train, y_val = sklearn.model_selection.train_test_split(x_train,
                                                                         y_train,
                                                                         test_size=val_size,
@@ -53,10 +70,12 @@ print("shape of validation set", x_val.shape)
 print("shape of test set", x_test.shape)
 
 # Build the Convolutional Autoencoder and the Classifier Network
-autoencoder, class_model = csae.build_test_model((x_train.shape[1], x_train.shape[2], x_train.shape[3]), latent_dims=latent_dims, number_of_classes=num_classes)
+autoencoder, class_model = csae.build_test_model((x_train.shape[1], x_train.shape[2], x_train.shape[3]),
+                                                 latent_dims=latent_dims,
+                                                 number_of_classes=num_classes)
 
 
-# Define the loss functions the Convolutional Autoencoder and the Classifier Network
+# Define the Loss Functions for the Convolutional Autoencoder and the Classifier Network
 loss_function_autoencoder = tf.keras.losses.MeanSquaredError()
 loss_function_classifier = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False)
 
@@ -68,6 +87,8 @@ class_metric = tf.keras.metrics.SparseCategoricalCrossentropy(from_logits=False,
 # Build the Convolutional Supervised Autoencoder Model
 model = csae.CSAE(autoencoder, class_model)
 model.build((None, x_train.shape[1], x_train.shape[2], x_train.shape[3]))
+
+# see a summary of the model
 model.summary()
 
 # Compile the Model
@@ -79,7 +100,7 @@ model.compile(optimizer,
             ae_metric)
 
 
-# Define some
+# Create directories to save results and checkpoints 
 checkpoint_parent_path = os.path.join(".", "checkpoints_classification_ae")
 if not os.path.isdir(checkpoint_parent_path):
     os.mkdir(checkpoint_parent_path)
@@ -136,12 +157,7 @@ history = model.fit(x_train,
                     callbacks=callbacks,
                     verbose=1)
 
-import pandas as pd
-import matplotlib
-import matplotlib.pyplot as plt
-import seaborn as sns
-import sklearn.manifold
-import sklearn.decomposition
+
 # =============================================================================
 #                    VISUALIZATION  OF THE TRAINING PROCEDURE
 # =============================================================================
@@ -150,56 +166,58 @@ import sklearn.decomposition
 plt.plot(history.epoch, history.history["val_ae_loss"])
 plt.plot(history.epoch, history.history["val_class_loss"])
 plt.plot(history.epoch, history.history["val_accuracy"])
-plt.legend(["val_ae_loss", "val_class_loss", "val_accuracy"])
+plt.legend(["Recon. Loss", "Class. Loss", "Accuracy"])
 plt.xlabel("Epochs")
 plt.ylabel("Value")
 plt.title("Training Procedure: Validation")
 plt.savefig(os.path.join(visualization_results_path,f"mnist_train_procedure_validation_{num_classes}_classes.png"),
+            bbox_inches='tight',
             dpi=300
             )
-# plt.show()
 plt.close()
 
 # Create a Plot of the training loss, classification error and accuracy per epoch
 plt.plot(history.epoch, history.history["ae_loss"])
 plt.plot(history.epoch, history.history["class_loss"])
 plt.plot(history.epoch, history.history["accuracy"])
-plt.legend(["val_ae_loss", "val_class_loss", "accuracy"])
+plt.legend(["Recon. Loss", "Class. Loss", "Accuracy"])
 plt.xlabel("Epochs")
 plt.ylabel("Value")
 plt.title("Training Procedure: Training")
 plt.savefig(os.path.join(visualization_results_path,f"mnist_train_procedure_train_{num_classes}_classes.png"),
+            bbox_inches='tight',
             dpi=300
             )
-plt.show()
 plt.close()
 
 
-# merge again train and val and remove the validation set
+# merge back the trainining and validation set and remove the validation set
 x_train = np.concatenate([x_train, x_val], axis=0)
 y_train = np.concatenate([y_train, y_val], axis=0)
 
 del x_val, y_val
 
-
-# Loading best weights for each model - highest validation accuracy
+# Loading best weights - criterion: highest validation accuracy
 print("Loading the best weights...")
 model.load_weights(os.path.join(checkpoint_path, "class_best_model_weights.tf"))
 
-# Predict for each testing image the probability of each class and assign it to the class of highest probability
+# Predict the probability of each class for each image in the test set 
+# and assign it to the class of highest probability
 predictions = model.class_model.predict(x_test)
 classes = np.argmax(predictions,axis=1)
 
-# Acquire the Evaluation Results of the Classifier and save it to the file
-import sklearn.metrics
+# Acquire the Evaluation Results of the Classifier and save them to a file
+print("Evaluating...")
 print(sklearn.metrics.classification_report(y_test, classes))
 res_dict = sklearn.metrics.classification_report(y_test, classes, output_dict=True)
 print(f"Analytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}")
 
 with open(os.path.join(classification_results_path, f"MNIST_network_output_class_report_{num_classes}_classes.txt"), "w") as f:
-    print(sklearn.metrics.classification_report(y_test, classes), f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",file=f)
+    print(sklearn.metrics.classification_report(y_test, classes),
+          f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",
+          file=f)
 
-# Acquire the Encoder Network and compute the Latent Representations of the images in the test set constructed by CSAE
+# Acquire the Encoder Network of CSAE and compute the Latent Representations of the images in the test set
 encoder = tf.keras.Model(inputs=model.autoencoder.input,
                         outputs=model.autoencoder.get_layer("LatentLayer").output)
 embeddings = encoder.predict(x_test)
@@ -208,6 +226,7 @@ if latent_dims  == 2:
     # =============================================================================
     #                                DECODER GRID 
     # =============================================================================
+    print("Constructing the Decoded Grid of Latent Representations...")
     save_path = os.path.join(visualization_results_path, "MNNIST_decoded_grid_of_points.png")
     number_of_points = 20
     decoder_first_layer_name = "Decoder3"
@@ -216,6 +235,8 @@ if latent_dims  == 2:
     #=============================================================================
     #                             Decision Boundary 
     # =============================================================================
+    print("Constructing a scatter plot of the Latent Representations along with the derived Classifier's Decision Boundary")
+    print("where some points are replaced by the corresponding original image...")
     classifier_first_layer_name = "Class1"
     zoom_figX_figY = (0.5, 12, 10)
     save_path = os.path.join(visualization_results_path,f"mnist_network_embedded_space_decision_boundary_2D_latent_dim_{num_classes}_classes.png")
@@ -224,9 +245,13 @@ if latent_dims  == 2:
 # =============================================================================
 #                         Latent Space Visualizations  
 # =============================================================================
-
+print("Creating the Latent Space Visualization...")
+# if the number of dimensions of the Latent Space is greater than 3
+# do a 2D scatter plot of the aforementioned space using t-SNE and PCA
 if latent_dims > 3:
-    # Make a 2D scatter plot of the result of the PCA dimensionality reduction method coloured with the ground truth classes
+    
+    # Make a 2D scatter plot of the embeddings produced by the PCA algorithm
+    # coloured with the ground truth classes
     print("Performing PCA to visualize Embedding Space...")
     embeddings_pca = sklearn.decomposition.PCA(n_components=2).fit_transform(embeddings)
 
@@ -238,12 +263,14 @@ if latent_dims > 3:
     plt.axis("Off")
     plt.tight_layout()
 
-    # save it to file
+    # save it to a file
     plt.savefig(os.path.join(visualization_results_path, f"MNIST_network_embedded_space_2D_PCA_latent_dim_num_classes_{num_classes}_classes.png"),
+                bbox_inches='tight',
                 dpi=300)
     plt.close()
 
-    # Make a 2D scatter plot of the result of the t-SNE visualization method coloured with the ground truth classes
+    # Make a 2D scatter plot of the embeddings produced by the t-SNE algorithm
+    # coloured with the ground truth classes
     print("Performing t-SNE to visualize Embedded Space...")
     embeddings_tsne = sklearn.manifold.TSNE(n_components=2,
                                             random_state=42).fit_transform(embeddings)
@@ -256,30 +283,36 @@ if latent_dims > 3:
     plt.axis("off")
     plt.tight_layout()
 
-    # save it to file
+    # save it to a file
     plt.savefig(os.path.join(visualization_results_path, f"MNIST_network_embedded_space_2D_TSNE_latent_dim_num_classes_{num_classes}_classes.png"),
+                bbox_inches='tight',
                 dpi=300)
     plt.close()
 
-
+# if the number of dimensions of the Latent Space is equal to 2
+# do a 2D scatter plot of the raw embeddings
 if latent_dims == 2:
-    # Make a 2D Scatter plot of the embeddings coloured with the ground truth class
+    # Make a 2D Scatter plot of the raw embeddings
+    # coloured with the ground truth class
     df = pd.DataFrame(data=embeddings, columns=["E1", "E2"])
     df["Y"] = y_test
 
     sns.scatterplot(x="E1", y="E2", hue="Y", data=df, palette="bright", alpha=0.4)
     plt.axis("off")
 
-    # save it to file
+    # save it to a file
     plt.savefig(os.path.join(visualization_results_path,f"MNIST_network_embedded_space_2D_latent_dim_num_classes_{num_classes}_classes.png"),
+                bbox_inches='tight',
                 dpi=300)
-    plt.show()
     plt.close()
 
 
-
+# if the number of dimensions of the Latent Space is equal to 3
+# do a 3D scatter plot of the raw embeddings
 if latent_dims == 3:
-    # Make a 3d scatter plot coloured with ground truth classes
+    
+    # Make a 3D Scatter plot of the raw embeddings
+    # coloured with the ground truth class
     df = pd.DataFrame(data=embeddings, columns=["E1", "E2", "E3"])
     df["Y"] = y_test
 
@@ -297,27 +330,28 @@ if latent_dims == 3:
 
     plt.tight_layout()
 
-    # save it to file
+    # save it to a file
     plt.savefig(os.path.join(visualization_results_path, f"MNIST_network_embedded_space_3D_latent_dim_num_classes_{num_classes}_classes.png"),
+                bbox_inches='tight',
                 dpi=300)
     plt.close()
 
-# =============================================================================
-#                         Improving Traditional Methods
-# =============================================================================
+# =================================================================================================================
+#                     Improving Traditional Classification Methods with CSAE's Latent Representations
+# =================================================================================================================
 
-print("------------------------------ Improving Traditional Methods -----------------------------------------")
+print("------------------------------ Improving Traditional Classification Methods with CSAE's Latent Representations -----------------------------------------")
 # Get the embeddings of the training set
 embeddings_train = encoder.predict(x_train)
 
 print("---------------------------- k-Nearest Neighbors ---------------------")
-import sklearn.neighbors
 
-# Train a k-Nearest Neighbors Classifier with number of neighbors equal to 3 on the Latent Representations of the training set constructed by CSAE
+# Train a k-Nearest Neighbors Classifier with number of neighbors equal to 3
+# on the test set's embeddings derived from CSAE
 n_neighbors = 3
 knn = sklearn.neighbors.KNeighborsClassifier(n_neighbors=n_neighbors).fit(embeddings, y_test)
 
-# Predict the class of the Latent Representations of the test set constructed by CSAE  using the trained classifier 
+# Predict the class of the test set's Latent Representations constructed by CSAE using the trained classifier 
 predictions = knn.predict(embeddings)
 
 # Acquire the Evaluation Results of the Classification
@@ -325,19 +359,21 @@ print(sklearn.metrics.classification_report(y_test, predictions))
 res_dict = sklearn.metrics.classification_report(y_test, predictions, output_dict=True)
 print(f"Analytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}")
 
-# Save it to file
+# Save it to a file
 with open(os.path.join(classification_results_path, f"MNIST_KNN_{n_neighbors}_{num_classes}_classes.txt"), "w") as f:
-    print(sklearn.metrics.classification_report(y_test, predictions), f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}", file=f)
+    print(sklearn.metrics.classification_report(y_test, predictions),
+          f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",
+          file=f)
 
 del predictions, knn
 
 print("---------------------------- SVM with RBF ---------------------")
-import sklearn.svm
 
-# Train a Support Vector Machine Classifier with the rbf kernel on the Latent Representations of the training set constructed by CSAE
+# Train a Support Vector Machine Classifier with the rbf kernel
+# on the train set's Latent Representations derived from CSAE
 svms = sklearn.svm.SVC(random_state=42).fit(embeddings_train, y_train)
 
-# Predict the class of the Latent Representations of the test set constructed by CSAE  using the trained classifier 
+# Predict the class of the test set's Latent Representations constructed by CSAE using the trained classifier
 predictions = svms.predict(embeddings)
 
 # Acquire the Evaluation Results of the Classification
@@ -345,18 +381,21 @@ print(sklearn.metrics.classification_report(y_test, predictions))
 res_dict = sklearn.metrics.classification_report(y_test, predictions, output_dict=True)
 print(f"Analytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}")
 
-# Save it to file
+# Save it to a file
 with open(os.path.join(classification_results_path, f"MNIST_SVM_{num_classes}_classes.txt"), "w") as f:
-    print(sklearn.metrics.classification_report(y_test, predictions), f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",file=f)
+    print(sklearn.metrics.classification_report(y_test, predictions),
+          f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",
+          file=f)
 
 del predictions, svms
 
 print("---------------------------- Naive Bayes ---------------------")
-# Train a Gaussian Naive Bayes Classier on the Latent Representations of the training set constructed by CSAE
-import sklearn.naive_bayes
+
+# Train a Gaussian Naive Bayes Classifier
+# on the train set's Latent Representations derived from CSAE
 gnb = sklearn.naive_bayes.GaussianNB().fit(embeddings_train, y_train)
 
-# Predict the class of the Latent Representations of the test set constructed by CSAE  using the trained classifier 
+# Predict the class of the test set's Latent Representations constructed by CSAE using the trained classifier
 predictions = gnb.predict(embeddings)
 
 # Acquire the Evaluation Results of the Classification
@@ -366,6 +405,8 @@ print(f"Analytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_di
 
 # Save it to file
 with open(os.path.join(classification_results_path, f"MNIST_GNB_{num_classes}_classes.txt"), "w") as f:
-    print(sklearn.metrics.classification_report(y_test, predictions), f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",file=f)
+    print(sklearn.metrics.classification_report(y_test, predictions),
+          f"\n\nAnalytically, Accuracy: {res_dict['accuracy']}, weighted_avg_f1: {res_dict['weighted avg']['f1-score']}",
+          file=f)
 
 del predictions, gnb

@@ -26,9 +26,16 @@ Run the experiment for a CSAE with a 10D Latent Space
 ```
 python3 main.py 10
 ```
+### Folder Creation
+The script execution produces a checkpoint folder along with a folder that contains the classification and visualization results, which are entitled as ```checkpoints_classification_ae``` and ```classification_and_visualization_results_CSAE```, correspondingly
 
-### Visualizations
-The script execution produces a checkpoint folder and a folder that contains the classification and visualization results. Regarding the latter, for a latent space of dimensions greater or equal to 2 a scatter plot of the latent space is created. For Latent Space of two or three dimensions a two or three dimensional scatter is created respectively, while for a number of dimensions greater than three, the two dimensional scatterplot is created using the PCA and t-SNE methods. The resulting scatter plot, is coloured based on the ground truth of each embedding. Also, specifically for the two dimensional latent space, a figure containing the resulting images of a decoded grid of points of the latent space, is created. Additionally, another figure is constructed, which presents a scatter plot of the latent space constructed by CSAE, the decision boundary of the classifier drawn onto the corresponding latent space, and additionally, some of the embeddings are replaced with the original image that the embedding originated from. Finally, a plot of the accuracy, reconstruction and classification error per epoch during the training and validation procedure is created. Some examples of the afforemetioned figures, for the two dimensional latent space are presented below.
+### Classification Results and Visualizations
+
+### Classification Results
+The Classification methodologies are also evaluated and the results are saved in the ```classification_resuls``` sub folder of the directory ```classification_and_visualization_results_CSAE```.
+
+#### Visualizations
+Additionally, the script execution creates a set of visualizations. Initially, a Latent Space visualization is constructed. In more detail, if the constructed Latent Space has a dimensionality equal to two (2) or three (3), then a 2D or 3D scatter plot of the raw embedding is constructed, while for a dimensionality greater than 3, the Latent Space is visualized by creating a 2D scatterplot of the embeddings produced by applying PCA or t-SNE onto the derived Latent Representations. Moreover, concerning the case where the Latent Space of CSAE is 2D, a 2D scatterplot of the raw embeddings along with the Classifier's Decision boundary is constructed, where some points are replaced by the corresponding original images, while for the same case, a figure of the images derived from decoding a latent representation grid is also generated. Finally, a plot of the accuracy, reconstruction and classification error per epoch during the training and validation procedure is constructed. The resulting visualization are saved in the ```visualization_results``` subfolder of the directory ```classification_and_visualization_results_CSAE```. Some examples of the afforemetioned figures, for the two dimensional latent space are presented below.
 ![](classification_and_visualization_results_CSAE/visualization_results/visualization_results_MNIST_num_class_10_lat_dims_2/mnist_network_embedded_space_decision_boundary_2D_latent_dim_10_classes.png)
 ![](classification_and_visualization_results_CSAE/visualization_results/visualization_results_MNIST_num_class_10_lat_dims_2/MNNIST_decoded_grid_of_points.png)
 
