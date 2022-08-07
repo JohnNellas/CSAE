@@ -315,20 +315,3 @@ def decision_boundary_on_latent_space(csae, embeddings, images_sample_pool, y_te
                 dpi=300,
                 bbox_inches='tight')
     plt.close()
-
-    # # Take a Random Sample of a number of images from the images_sample_pool and present it on the latent space
-    # np.random.seed(seed_val)
-    # samples_to_display = np.random.randint(0, y_test.shape[0], size=number_of_samples)
-    # cmap = "gray" if len(images_sample_pool.shape) == 3 or (len(images_sample_pool.shape) == 4 and images_sample_pool.shape[-1]==1) else None
-    # for sample in samples_to_display:
-    #     im = matplotlib.offsetbox.OffsetImage(images_sample_pool[sample].squeeze(), zoom=zoom, cmap=cmap)
-    #     x0, y0 = embeddings[sample]
-    #     ab = matplotlib.offsetbox.AnnotationBbox(im, (x0, y0), frameon=False)
-    #     ax.add_artist(ab)
-    # plt.axis("off")
-
-    # # save the figure to a file
-    # plt.savefig(save_path,
-    #             bbox_inches='tight',
-    #             dpi=300)
-    # plt.close()
