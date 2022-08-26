@@ -1,5 +1,5 @@
 # Convolutional Supervised Autoencoder - CSAE
-This GitHub repository contains the Keras implementation on the MNIST Dataset and the Supplementary Material of the ![Supervised Dimensionality Reduction and Classification with Convolutional Autoencoders](https://arxiv.org/abs/2208.12152v1).
+This GitHub repository contains the Keras implementation on the MNIST Dataset and the Supplementary Material of the [https://arxiv.org/abs/2208.12152v1][Supervised Dimensionality Reduction and Classification with Convolutional Autoencoders].
 
 ## Experiment on MNIST Dataset
 ### Usage
